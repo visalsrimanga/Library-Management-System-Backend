@@ -9,15 +9,32 @@ import jakarta.servlet.annotation.*;
 import lk.ijse.dep9.api.util.HttpServlet2;
 import lk.ijse.dep9.db.ConnectionPool;
 import lk.ijse.dep9.dto.MemberDTO;
+import org.apache.commons.dbcp2.BasicDataSource;
 
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@WebServlet(name = "MemberServlet", value = "/members/*")
+@WebServlet(name = "MemberServlet", value = "/members/*", loadOnStartup = 0)
 public class MemberServlet extends HttpServlet2 {
+
+    private DataSource pool;
+
+    @Override
+    public void init() throws ServletException {
+        try {
+            InitialContext ctx = new InitialContext();
+            pool = (DataSource) ctx.lookup("jdbc/lms");
+        } catch (NamingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 //        response.getWriter().println("MemberServlet: doGet()");
@@ -58,7 +75,8 @@ public class MemberServlet extends HttpServlet2 {
     private void loadAllMembers(HttpServletResponse response) throws IOException {
 //        response.getWriter().printf("<h1>WS: loadAllMembers()</h1>");
         try {
-            ConnectionPool pool = (ConnectionPool) getServletContext().getAttribute("pool");
+//            ConnectionPool pool = (ConnectionPool) getServletContext().getAttribute("pool");
+//            BasicDataSource pool = (BasicDataSource) getServletContext().getAttribute("pool");
             Connection connection = pool.getConnection();
 
             Statement stm =connection.createStatement();
@@ -74,8 +92,11 @@ public class MemberServlet extends HttpServlet2 {
                     MemberDTO dto = new MemberDTO(id, name, address, contact);
                     members.add(dto);
                 }
+            /* How to release the connection in connection pool which is prepared by us */
+//                pool.releaseConnection(connection);
 
-                pool.releaseConnection(connection);
+            /* This is not going to close the connection, instead it release the connection */
+            connection.close();
 
                 Jsonb jsonb = JsonbBuilder.create();
                 response.setContentType("application/json");

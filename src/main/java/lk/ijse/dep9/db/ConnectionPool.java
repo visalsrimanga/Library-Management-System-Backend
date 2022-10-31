@@ -18,7 +18,8 @@ public class ConnectionPool {
             Class.forName("com.mysql.cj.jdbc.Driver");
 
             for (int i = 0; i < poolSize; i++) {
-                Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/dep9_lms","root","Dvs&12345");
+                Connection connection = DriverManager.
+                        getConnection("jdbc:mysql://localhost:3306/dep9_lms","root","Dvs&12345");
                 pool.add(connection);
             }
 
