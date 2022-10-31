@@ -130,7 +130,6 @@ public class MemberServlet extends HttpServlet2 {
         }
     }
 
-
     private void searchPaginatedMembers(String query, int size, int page, HttpServletResponse response) throws IOException {
         try(Connection connection = pool.getConnection()){
             String sql = "SELECT COUNT(id) as count FROM member WHERE id LIKE ? OR name LIKE ? OR address LIKE ? OR contact LIKE ?";
@@ -234,13 +233,39 @@ public class MemberServlet extends HttpServlet2 {
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.getWriter().println("MemberServlet: doPost()");
+    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        if (request.getPathInfo() == null || request.getPathInfo().equals("/")){
+            response.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, "Expected valid UUID");
+            return;
+        }
+
+        Matcher matcher = Pattern.compile("^/([A-Fa-f0-9]{8}(-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12})/?$")
+                .matcher(request.getPathInfo());
+        if (matcher.matches()){
+            deleteMember(matcher.group(1), response);
+        } else {
+            response.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, "Expected valid UUID");
+        }
+    }
+
+    private void deleteMember(String memberID, HttpServletResponse response){
+        try(Connection connection = pool.getConnection()){
+            PreparedStatement stm = connection.prepareStatement("DELETE FROM member WHERE id=?");
+            stm.setString(1, memberID);
+            int affectedRows = stm.executeUpdate();
+            if (affectedRows == 0){
+                response.sendError(HttpServletResponse.SC_NOT_FOUND, "Invalid member Id");
+            } else {
+                response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+            }
+        } catch (SQLException|IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
-    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        resp.getWriter().println("MemberServlet: doDelete()");
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        response.getWriter().println("MemberServlet: doPost()");
     }
 
     @Override
