@@ -1,5 +1,6 @@
 package lk.ijse.dep9.api;
 
+import jakarta.annotation.Resource;
 import jakarta.json.bind.Jsonb;
 import jakarta.json.bind.JsonbBuilder;
 import jakarta.json.bind.JsonbConfig;
@@ -23,9 +24,11 @@ import java.util.regex.Pattern;
 @WebServlet(name = "MemberServlet", value = "/members/*", loadOnStartup = 0)
 public class MemberServlet extends HttpServlet2 {
 
+    @Resource(lookup = "java:/comp/env/jdbc/dep9-lms")
     private DataSource pool;
 
-    @Override
+    /* This is the old way */
+    /*@Override
     public void init() throws ServletException {
         try {
             InitialContext ctx = new InitialContext();
@@ -33,7 +36,7 @@ public class MemberServlet extends HttpServlet2 {
         } catch (NamingException e) {
             throw new RuntimeException(e);
         }
-    }
+    }*/
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -102,39 +105,49 @@ public class MemberServlet extends HttpServlet2 {
                 response.setContentType("application/json");
                 jsonb.toJson(members, response.getWriter());
 
-
-//                StringBuilder sb = new StringBuilder();
-//                sb.append("[");
-//                while(rst.next()){
-//                    String id = rst.getString("id");
-////                    String name = rst.getString("name");
-////                    String address = rst.getString("address");
-////                    String contact = rst.getString("contact");
-//                    String jsonObj = "{\n" +
-//                            "  \"id\": \""+id+"\",\n" +
-//                            "  \"name\": \""+name+"\",\n" +
-//                            "  \"address\": \""+address+"\",\n" +
-//                            "  \"contact\": \""+contact+"\"\n" +
-//                            "}";
-//                    sb.append(jsonObj).append(",");
-//                }
-//                sb.deleteCharAt(sb.length()-1);
-//                sb.append("]");
-//                response.setContentType("application/json");
-//                response.getWriter().println(sb);
-
         } catch (SQLException e) {
             e.printStackTrace();
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Fail to load members");
         }
     }
 
-    private void searchPaginatedMembers(String query, int size, int page, HttpServletResponse response) throws IOException {
-        response.getWriter().printf("<h1>WS: searchMembersByPage(), size = %s, page = %s</h1>",size, page);
+    private void searchMembers(String query, HttpServletResponse response) throws IOException {
+        try {
+            Connection connection = pool.getConnection();
+            PreparedStatement stm = connection.prepareStatement
+                    ("SELECT * FROM member WHERE id LIKE ? OR name LIKE ? OR address LIKE ? OR contact LIKE ?");
+
+            query="%"+query+"%";
+
+            stm.setString(1, query);
+            stm.setString(2, query);
+            stm.setString(3, query);
+            stm.setString(4, query);
+            ResultSet rst = stm.executeQuery();
+
+            ArrayList<MemberDTO> members = new ArrayList<>();
+
+            while (rst.next()){
+                String id = rst.getString("id");
+                String name = rst.getString("name");
+                String address = rst.getString("address");
+                String contact = rst.getString("contact");
+                members.add(new MemberDTO(id, name, address, contact));
+            }
+            connection.close();
+
+            Jsonb jsonb = JsonbBuilder.create();
+            response.setContentType("application/json");
+            jsonb.toJson(members, response.getWriter());
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Fail to execute the query");
+        }
     }
 
-    private void searchMembers(String query, HttpServletResponse response) throws IOException {
-        response.getWriter().printf("<h1>WS: searchMembers(), query = %s </h1>",query);
+    private void searchPaginatedMembers(String query, int size, int page, HttpServletResponse response) throws IOException {
+        response.getWriter().printf("<h1>WS: searchMembersByPage(), size = %s, page = %s</h1>",size, page);
     }
 
     private void loadAllPaginatedMembers(int size, int page, HttpServletResponse response) throws IOException {
@@ -144,9 +157,6 @@ public class MemberServlet extends HttpServlet2 {
     private void getMemberDetails(String memberId, HttpServletResponse response) throws IOException {
         response.getWriter().printf("<h1>WS: getMemberDetails(), memberId = %s </h1>",memberId);
     }
-
-
-
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
