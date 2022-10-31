@@ -76,54 +76,9 @@ public class MemberServlet extends HttpServlet2 {
     }
 
     private void loadAllMembers(HttpServletResponse response) throws IOException {
-//        response.getWriter().printf("<h1>WS: loadAllMembers()</h1>");
-        try {
-//            ConnectionPool pool = (ConnectionPool) getServletContext().getAttribute("pool");
-//            BasicDataSource pool = (BasicDataSource) getServletContext().getAttribute("pool");
-            Connection connection = pool.getConnection();
-
-            Statement stm =connection.createStatement();
-                ResultSet rst = stm.executeQuery("SELECT * FROM member");
-
-                ArrayList<MemberDTO> members = new ArrayList<>();
-
-                while(rst.next()){
-                    String id = rst.getString("id");
-                    String name = rst.getString("name");
-                    String address = rst.getString("address");
-                    String contact = rst.getString("contact");
-                    MemberDTO dto = new MemberDTO(id, name, address, contact);
-                    members.add(dto);
-                }
-            /* How to release the connection in connection pool which is prepared by us */
-//                pool.releaseConnection(connection);
-
-            /* This is not going to close the connection, instead it release the connection */
-            connection.close();
-
-                Jsonb jsonb = JsonbBuilder.create();
-                response.setContentType("application/json");
-                jsonb.toJson(members, response.getWriter());
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Fail to load members");
-        }
-    }
-
-    private void searchMembers(String query, HttpServletResponse response) throws IOException {
-        try {
-            Connection connection = pool.getConnection();
-            PreparedStatement stm = connection.prepareStatement
-                    ("SELECT * FROM member WHERE id LIKE ? OR name LIKE ? OR address LIKE ? OR contact LIKE ?");
-
-            query="%"+query+"%";
-
-            stm.setString(1, query);
-            stm.setString(2, query);
-            stm.setString(3, query);
-            stm.setString(4, query);
-            ResultSet rst = stm.executeQuery();
+        try(Connection connection = pool.getConnection()){
+            Statement stm = connection.createStatement();
+            ResultSet rst = stm.executeQuery("SELECT * FROM member");
 
             ArrayList<MemberDTO> members = new ArrayList<>();
 
@@ -134,17 +89,47 @@ public class MemberServlet extends HttpServlet2 {
                 String contact = rst.getString("contact");
                 members.add(new MemberDTO(id, name, address, contact));
             }
-            connection.close();
 
-            Jsonb jsonb = JsonbBuilder.create();
             response.setContentType("application/json");
-            jsonb.toJson(members, response.getWriter());
+            JsonbBuilder.create().toJson(members, response.getWriter());
 
         } catch (SQLException e) {
             e.printStackTrace();
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Fail to execute the query");
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Fail to load data from database");
         }
     }
+
+    private void searchMembers(String query, HttpServletResponse response) throws IOException {
+        try(Connection connection = pool.getConnection()){
+            PreparedStatement stm = connection.prepareStatement
+                    ("SELECT * FROM member WHERE id LIKE ? OR name LIKE ? OR address LIKE ? OR contact LIKE ?");
+            query = "%"+query+"%";
+
+            stm.setString(1, query);
+            stm.setString(2, query);
+            stm.setString(3, query);
+            stm.setString(4, query);
+
+            ResultSet rst = stm.executeQuery();
+            ArrayList<MemberDTO> members = new ArrayList<>();
+
+            while(rst.next()){
+                String id = rst.getString("id");
+                String name = rst.getString("name");
+                String address = rst.getString("address");
+                String contact = rst.getString("contact");
+                members.add(new MemberDTO(id, name, address, contact));
+            }
+
+            response.setContentType("application/json");
+            JsonbBuilder.create().toJson(members, response.getWriter());
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error while load data from database");
+        }
+    }
+
 
     private void searchPaginatedMembers(String query, int size, int page, HttpServletResponse response) throws IOException {
         try(Connection connection = pool.getConnection()){
