@@ -147,15 +147,105 @@ public class MemberServlet extends HttpServlet2 {
     }
 
     private void searchPaginatedMembers(String query, int size, int page, HttpServletResponse response) throws IOException {
-        response.getWriter().printf("<h1>WS: searchMembersByPage(), size = %s, page = %s</h1>",size, page);
+        try(Connection connection = pool.getConnection()){
+            String sql = "SELECT COUNT(id) as count FROM member WHERE id LIKE ? OR name LIKE ? OR address LIKE ? OR contact LIKE ?";
+            PreparedStatement countStm = connection.prepareStatement(sql);
+
+            PreparedStatement stm = connection.prepareStatement
+                    ("SELECT * FROM member WHERE id LIKE ? OR name LIKE ? OR address LIKE ? OR contact LIKE ? LIMIT ? OFFSET ?");
+
+            query="%"+query+"%";
+
+            int length = sql.split("[?]").length;
+
+            for (int i = 1; i <= length; i++) {
+                countStm.setString(i, query);
+                stm.setString(i, query);
+            }
+
+            stm.setInt(length+1, size);
+            stm.setInt(length+2, (page-1)*size);
+            ResultSet rst = countStm.executeQuery();
+            rst.next();
+            response.setIntHeader("X-Total-Count", rst.getInt("count"));
+            rst = stm.executeQuery();
+
+            ArrayList<MemberDTO> members = new ArrayList<>();
+
+            while(rst.next()){
+                String id = rst.getString("id");
+                String name = rst.getString("name");
+                String address = rst.getString("address");
+                String contact = rst.getString("contact");
+                members.add(new MemberDTO(id, name, address, contact));
+            }
+
+            Jsonb jsonb = JsonbBuilder.create();
+            response.setContentType("application/json");
+            jsonb.toJson(members, response.getWriter());
+
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Fail to fetch members");
+        }
     }
 
     private void loadAllPaginatedMembers(int size, int page, HttpServletResponse response) throws IOException {
-        response.getWriter().printf("<h1>WS: loadAllMembersByPage(), size = %s, page = %s</h1>",size, page);
+        try(Connection connection = pool.getConnection()){
+            Statement stm = connection.createStatement();
+            ResultSet rst = stm.executeQuery("SELECT COUNT(id) AS count FROM member");
+            rst.next();
+            int totalMembers = rst.getInt("count");
+            response.setIntHeader("X-Total-Count", totalMembers);
+
+            PreparedStatement stm2 = connection.
+                    prepareStatement("SELECT * FROM member LIMIT ? OFFSET ?");
+            stm2.setInt(1, size);
+            stm2.setInt(2, (page -1)*size);
+            rst = stm2.executeQuery();
+
+            ArrayList<MemberDTO> members = new ArrayList<>();
+
+            while(rst.next()){
+                String id = rst.getString("id");
+                String name = rst.getString("name");
+                String address = rst.getString("address");
+                String contact = rst.getString("contact");
+                members.add(new MemberDTO(id, name, address, contact));
+            }
+
+            Jsonb jsonb = JsonbBuilder.create();
+            response.setContentType("application/json");
+            jsonb.toJson(members, response.getWriter());
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Fail to execute the query");
+        }
     }
 
     private void getMemberDetails(String memberId, HttpServletResponse response) throws IOException {
-        response.getWriter().printf("<h1>WS: getMemberDetails(), memberId = %s </h1>",memberId);
+        try(Connection connection = pool.getConnection()){
+            PreparedStatement stm = connection.prepareStatement("SELECT * FROM member WHERE id=?");
+            stm.setString(1, memberId);
+            ResultSet rst = stm.executeQuery();
+
+            if (rst.next()){
+                String id = rst.getString("id");
+                String name = rst.getString("name");
+                String address = rst.getString("address");
+                String contact = rst.getString("contact");
+                response.setContentType("application/json");
+                JsonbBuilder.create().toJson(new MemberDTO(id, name, address, contact), response.getWriter());
+            } else {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND, "Invalid member id");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to execute the query");
+        }
     }
 
     @Override
