@@ -4,6 +4,7 @@ import jakarta.annotation.Resource;
 import jakarta.json.bind.Jsonb;
 import jakarta.json.bind.JsonbBuilder;
 import jakarta.json.bind.JsonbConfig;
+import jakarta.json.bind.JsonbException;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import jakarta.servlet.annotation.*;
@@ -18,6 +19,7 @@ import javax.sql.DataSource;
 import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -69,10 +71,10 @@ public class MemberServlet extends HttpServlet2 {
             if (matcher.matches()){
                 getMemberDetails(matcher.group(1), response);
             } else {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,"Expented valid UUID");
                 response.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, "Expected valid UUID");
             }
         }
-
     }
 
     private void loadAllMembers(HttpServletResponse response) throws IOException {
@@ -90,6 +92,8 @@ public class MemberServlet extends HttpServlet2 {
                 members.add(new MemberDTO(id, name, address, contact));
             }
 
+//            response.addHeader("Access-Control-Allow-Origin", "http://localhost:5500");
+            response.addHeader("Access-Control-Allow-Origin", "*");
             response.setContentType("application/json");
             JsonbBuilder.create().toJson(members, response.getWriter());
 
@@ -164,6 +168,9 @@ public class MemberServlet extends HttpServlet2 {
                 members.add(new MemberDTO(id, name, address, contact));
             }
 
+            response.addHeader("Access-Control-Allow-Origin", "*");
+            response.addHeader("Access-Control-Allow-Headers", "X-Total-Count");
+            response.addHeader("Access-Control-Expose-Headers", "X-Total-Count");
             Jsonb jsonb = JsonbBuilder.create();
             response.setContentType("application/json");
             jsonb.toJson(members, response.getWriter());
@@ -199,6 +206,9 @@ public class MemberServlet extends HttpServlet2 {
                 members.add(new MemberDTO(id, name, address, contact));
             }
 
+            response.addHeader("Access-Control-Allow-Origin", "*");
+            response.addHeader("Access-Control-Allow-Headers", "X-Total-Count");
+            response.addHeader("Access-Control-Expose-Headers", "X-Total-Count");
             Jsonb jsonb = JsonbBuilder.create();
             response.setContentType("application/json");
             jsonb.toJson(members, response.getWriter());
@@ -265,11 +275,120 @@ public class MemberServlet extends HttpServlet2 {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.getWriter().println("MemberServlet: doPost()");
+        if (request.getPathInfo() == null || request.getPathInfo().equals("/")){
+            try {
+                if (request.getContentType() == null || !request.getContentType().startsWith("application/json")){
+                    throw new RuntimeException("Invalid JSON");
+                }
+
+                MemberDTO member = JsonbBuilder.create().fromJson(request.getReader(), MemberDTO.class);
+
+                if (member.getName() == null || !member.getName().matches("[A-Za-z ]+")){
+                    throw new JsonbException("Name is empty or invalid");
+                } else if (member.getContact() == null || !member.getContact().matches("\\d{3}-\\d{7}")) {
+                    throw new JsonbException("Contact is empty or invalid");
+                } else if (member.getAddress() == null || !member.getAddress().matches("[A-Za-z0-9 ,:/-]+")) {
+                    throw new JsonbException("Address is empty or invalid");
+                }
+
+                try(Connection connection = pool.getConnection()){
+                    member.setId(UUID.randomUUID().toString());
+                    PreparedStatement stm = connection.prepareStatement
+                            ("INSERT INTO member (id, name, address, contact) VALUES (?, ?, ?, ?)");
+                    stm.setString(1, member.getId());
+                    stm.setString(2, member.getName());
+                    stm.setString(3, member.getAddress());
+                    stm.setString(4, member.getContact());
+
+                    int affectedRows = stm.executeUpdate();
+
+                    if (affectedRows == 1) {
+                        response.setStatus(HttpServletResponse.SC_CREATED);
+                        response.setContentType("application/json");
+                        JsonbBuilder.create().toJson(member, response.getWriter());
+                    } else {
+                        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    }
+
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+                }
+
+            } catch (JsonbException e) {
+                e.printStackTrace();
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON");
+            }
+
+        } else {
+            response.sendError(HttpServletResponse.SC_NO_CONTENT);
+        }
     }
 
     @Override
-    protected void doPatch(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        resp.getWriter().println("MemberServlet: doPatch()");
+    protected void doPatch(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        if (request.getPathInfo() == null || request.getPathInfo().equals("/")){
+            response.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, "Expected valid UUID");
+            return;
+        }
+        Matcher matcher = Pattern.compile("^/([A-Fa-f0-9]{8}(-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12})/?$")
+                .matcher(request.getPathInfo());
+        if (matcher.matches()){
+            updateMember(matcher.group(1), request, response);
+        } else {
+            response.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, "Expected valid UUID");
+        }
+    }
+
+    private void updateMember(String memberId, HttpServletRequest request, HttpServletResponse response) throws IOException {
+        try {
+            if (request.getContentType() == null || !request.getContentType().startsWith("application/json")) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid Json");
+            }
+            MemberDTO member = JsonbBuilder.create().fromJson(request.getReader(), MemberDTO.class);
+
+            if(member.getId() == null || !memberId.equalsIgnoreCase(member.getId())){
+                throw new JsonbException("Id is empty or invalid");
+            }else if (member.getName() == null || !member.getName().matches("[A-Za-z ]+")){
+                throw new JsonbException("Name is empty or invalid");
+            } else if (member.getContact() == null || !member.getContact().matches("\\d{3}-\\d{7}")) {
+                throw new JsonbException("Contact is empty or invalid");
+            } else if (member.getAddress() == null || !member.getAddress().matches("[A-Za-z0-9 ,:/-]+")) {
+                throw new JsonbException("Address is empty or invalid");
+            }
+
+            try(Connection connection = pool.getConnection()){
+                PreparedStatement stm = connection.prepareStatement
+                        ("UPDATE member SET name=?, address=?, contact=? WHERE id=?");
+                stm.setString(1, member.getName());
+                stm.setString(2, member.getAddress());
+                stm.setString(3, member.getContact());
+                stm.setString(4, member.getId());
+
+                if (stm.executeUpdate() == 1){
+                    response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+                } else {
+                    response.sendError(HttpServletResponse.SC_NOT_FOUND, "Member does not exits");
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error while loading data from DB");
+            }
+        } catch (JsonbException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    @Override
+    protected void doOptions(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        resp.setHeader("Access-Control-Allow-Origin", "*");
+        resp.setHeader("Access-Control-Allow-Methods", "POST, GET, PATCH, DELETE, HEAD, OPTIONS, PUT");
+
+        String headers = req.getHeader("Access-Control-Request-Headers");
+        if (headers != null){
+            resp.setHeader("Access-Control-Allow-Headers", headers);
+            resp.setHeader("Access-Control-Expose-Headers", headers);
+        }
     }
 }
+
