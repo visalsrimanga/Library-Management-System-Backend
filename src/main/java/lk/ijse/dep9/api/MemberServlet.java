@@ -305,6 +305,7 @@ public class MemberServlet extends HttpServlet2 {
                     if (affectedRows == 1) {
                         response.setStatus(HttpServletResponse.SC_CREATED);
                         response.setContentType("application/json");
+                        response.addHeader("Access-Control-Allow-Origin", "*");
                         JsonbBuilder.create().toJson(member, response.getWriter());
                     } else {
                         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
