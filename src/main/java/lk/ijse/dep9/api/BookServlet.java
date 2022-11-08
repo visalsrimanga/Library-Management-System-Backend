@@ -8,6 +8,7 @@ import jakarta.servlet.http.*;
 import jakarta.servlet.annotation.*;
 import lk.ijse.dep9.api.util.HttpServlet2;
 import lk.ijse.dep9.dto.BookDTO;
+import lk.ijse.dep9.dto.MemberDTO;
 
 import javax.sql.DataSource;
 import java.io.IOException;
@@ -189,7 +190,26 @@ public class BookServlet extends HttpServlet2 {
     }
 
     private void getBookDetails(String isbn, HttpServletResponse response) throws IOException {
-        response.getWriter().println("get book details");
+        try(Connection connection = pool.getConnection()){
+            PreparedStatement stm = connection.prepareStatement("SELECT * FROM book WHERE isbn = ?");
+            stm.setString(1, isbn);
+            ResultSet rst = stm.executeQuery();
+
+            if (rst.next()){
+                String isbn1 = rst.getString("isbn");
+                String title = rst.getString("title");
+                String author = rst.getString("author");
+                int copies = rst.getInt("copies");
+                response.setContentType("application/json");
+                JsonbBuilder.create().toJson(new BookDTO(isbn1, title, author, copies), response.getWriter());
+            } else {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND, "Invalid ISBN");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error while loading the data");
+        }
     }
 
     @Override
