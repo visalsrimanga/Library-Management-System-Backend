@@ -231,6 +231,7 @@ public class MemberServlet extends HttpServlet2 {
                 String address = rst.getString("address");
                 String contact = rst.getString("contact");
                 response.setContentType("application/json");
+                response.setHeader("Access-Control-Allow-Origin","*");
                 JsonbBuilder.create().toJson(new MemberDTO(id, name, address, contact), response.getWriter());
             } else {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, "Invalid member id");
@@ -266,6 +267,7 @@ public class MemberServlet extends HttpServlet2 {
             if (affectedRows == 0){
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, "Invalid member Id");
             } else {
+                response.setHeader("Access-Control-Allow-Origin","*");
                 response.setStatus(HttpServletResponse.SC_NO_CONTENT);
             }
         } catch (SQLException|IOException e) {
@@ -367,6 +369,7 @@ public class MemberServlet extends HttpServlet2 {
                 stm.setString(4, member.getId());
 
                 if (stm.executeUpdate() == 1){
+                    response.setHeader("Access-Control-Allow-Origin","*");
                     response.setStatus(HttpServletResponse.SC_NO_CONTENT);
                 } else {
                     response.sendError(HttpServletResponse.SC_NOT_FOUND, "Member does not exits");
