@@ -230,7 +230,7 @@ public class BookServlet extends HttpServlet2 {
 
                 BookDTO bookObj = JsonbBuilder.create().fromJson(request.getReader(), BookDTO.class);
 
-                if (bookObj.getIsbn() == null || !bookObj.getIsbn().matches("^/([\\d]{3}-[\\d]{1}-[\\d]{2}-[\\d]{6}-[\\d]{1})/?$")){
+                if (bookObj.getIsbn() == null || !bookObj.getIsbn().matches("([0-9]{3}-[0-9]{1}-[0-9]{2}-[0-9]{6}-[0-9]{1})")){
                     System.out.println(bookObj.getIsbn());
                     throw new JsonbException("ISBN is empty or invalid");
                 } else if (bookObj.getTitle() == null || !bookObj.getTitle().matches("[A-Za-z0-9 -]+")) {
