@@ -106,9 +106,9 @@ public class BookServlet extends HttpServlet2 {
                 books.add(new BookDTO(isbn, title, author, copies));
             }
 
-           /* response.addHeader("Access-Control-Allow-Origin", "*");
+//            response.addHeader("Access-Control-Allow-Origin", "*");
             response.addHeader("Access-Control-Allow-Headers", "X-Total-Count");
-            response.addHeader("Access-Control-Expose-Headers", "X-Total-Count");*/
+            response.addHeader("Access-Control-Expose-Headers", "X-Total-Count");
             response.setContentType("application/json");
             JsonbBuilder.create().toJson(books, response.getWriter());
 
@@ -185,9 +185,9 @@ public class BookServlet extends HttpServlet2 {
                 int copies = rst.getInt("copies");
                 books.add(new BookDTO(isbn, title, author, copies));
             }
-            /*response.addHeader("Access-Control-Allow-Origin", "*");
+//            response.addHeader("Access-Control-Allow-Origin", "*");
             response.addHeader("Access-Control-Allow-Headers", "X-Total-Count");
-            response.addHeader("Access-Control-Expose-Headers", "X-Total-Count");*/
+            response.addHeader("Access-Control-Expose-Headers", "X-Total-Count");
             response.setContentType("application/json");
             JsonbBuilder.create().toJson(books, response.getWriter());
 

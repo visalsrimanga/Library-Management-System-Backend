@@ -168,9 +168,10 @@ public class MemberServlet extends HttpServlet2 {
                 members.add(new MemberDTO(id, name, address, contact));
             }
 
-            /*response.addHeader("Access-Control-Allow-Origin", "*");
+//            response.addHeader("Access-Control-Allow-Origin", "*");
             response.addHeader("Access-Control-Allow-Headers", "X-Total-Count");
-            response.addHeader("Access-Control-Expose-Headers", "X-Total-Count");*/
+            response.addHeader("Access-Control-Expose-Headers", "X-Total-Count");
+
             Jsonb jsonb = JsonbBuilder.create();
             response.setContentType("application/json");
             jsonb.toJson(members, response.getWriter());
@@ -207,8 +208,8 @@ public class MemberServlet extends HttpServlet2 {
             }
 
 //            response.addHeader("Access-Control-Allow-Origin", "*");
-//            response.addHeader("Access-Control-Allow-Headers", "X-Total-Count");
-//            response.addHeader("Access-Control-Expose-Headers", "X-Total-Count");
+            response.addHeader("Access-Control-Allow-Headers", "X-Total-Count");
+            response.addHeader("Access-Control-Expose-Headers", "X-Total-Count");
             Jsonb jsonb = JsonbBuilder.create();
             response.setContentType("application/json");
             jsonb.toJson(members, response.getWriter());
