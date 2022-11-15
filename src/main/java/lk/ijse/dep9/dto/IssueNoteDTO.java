@@ -13,8 +13,7 @@ import java.util.Locale;
 @AllArgsConstructor
 
 public class IssueNoteDTO {
-    private int id;
-    private Integer issueId;
+    private Integer id;
     private LocalDate date;
     private String memberId;
     private ArrayList<String> books = new ArrayList<>();
