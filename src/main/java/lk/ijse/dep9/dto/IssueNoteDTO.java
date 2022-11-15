@@ -13,6 +13,7 @@ import java.util.Locale;
 @AllArgsConstructor
 
 public class IssueNoteDTO {
+    private int id;
     private Integer issueId;
     private LocalDate date;
     private String memberId;
