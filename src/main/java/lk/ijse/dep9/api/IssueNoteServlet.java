@@ -1,6 +1,7 @@
 package lk.ijse.dep9.api;
 
 import jakarta.annotation.Resource;
+import jakarta.json.Json;
 import jakarta.json.JsonException;
 import jakarta.json.bind.JsonbBuilder;
 import jakarta.json.bind.JsonbException;
@@ -46,21 +47,19 @@ public class IssueNoteServlet extends HttpServlet2 {
     }
     private void createIssueNote(IssueNoteDTO issueNote, HttpServletResponse response) throws IOException {
         if (issueNote.getMemberId() == null ||
-                !issueNote.getMemberId()
-                        .matches("([A-Fa-f0-9]{8}(-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12})")) {
+                !issueNote.getMemberId().matches("([A-Fa-f0-9]{8}(-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12})")) {
             throw new JsonbException("Member id is empty or invalid");
         } else if (issueNote.getBooks().isEmpty()) {
             throw new JsonbException("Can't place an issue note without books");
         }else if(issueNote.getBooks().size() > 3){
             throw new JsonbException("Can't issue more than 3 books");
-        } else if (issueNote.getBooks().stream()
-                .anyMatch(isbn -> isbn == null || !isbn.matches("([0-9][0-9\\\\-]*[0-9])"))) {
+        } else if (!issueNote.getBooks().stream()
+                .allMatch(isbn -> isbn == null || !isbn.matches("([0-9][0-9\\\\-]*[0-9])"))) {
             throw new JsonbException("Invalid isbn in the books list");
         }else if(issueNote.getBooks().stream().collect(Collectors.toSet()).size()
                 != issueNote.getBooks().size()){
             throw new JsonbException("Duplicate isbns are found");
         }
-
 
         try (Connection connection = pool.getConnection()) {
             PreparedStatement stmMemberExist = connection.
@@ -81,6 +80,7 @@ public class IssueNoteServlet extends HttpServlet2 {
                     "    INNER JOIN book b on ii.isbn = b.isbn\n" +
                     "    INNER JOIN issue_note `in` on ii.issue_id = `in`.id\n" +
                     "    WHERE `in`.member_id = ? AND b.isbn = ?");
+
             stm2.setString(1, issueNote.getMemberId());
 
             for (String isbn : issueNote.getBooks()) {

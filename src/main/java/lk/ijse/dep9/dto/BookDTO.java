@@ -8,7 +8,7 @@ import java.io.Serializable;
 
 @NoArgsConstructor
 @AllArgsConstructor
-@Data
+@Data   /* toString(), Getters, Setters, equals(), hashcode() all are override */
 
 public class BookDTO implements Serializable {
     private String isbn;
