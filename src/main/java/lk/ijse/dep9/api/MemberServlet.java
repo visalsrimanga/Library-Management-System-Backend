@@ -11,6 +11,7 @@ import jakarta.servlet.annotation.*;
 import lk.ijse.dep9.api.util.HttpServlet2;
 import lk.ijse.dep9.db.ConnectionPool;
 import lk.ijse.dep9.dto.MemberDTO;
+import lk.ijse.dep9.exception.ResponseStatusException;
 import org.apache.commons.dbcp2.BasicDataSource;
 
 import javax.naming.InitialContext;
@@ -52,7 +53,8 @@ public class MemberServlet extends HttpServlet2 {
                 if (size.matches("\\d+") && page.matches("\\d+")){
                     searchPaginatedMembers(query, Integer.parseInt(size),Integer.parseInt(page), response);
                 } else {
-                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid page or size");
+//                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid page or size");
+                    throw new ResponseStatusException(501);
                 }
             } else if (query != null) {
                 searchMembers(query, response);
